@@ -1,0 +1,604 @@
+// ---------------- Generators & datasource ----------------
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------- Enums ----------------
+enum Sex {
+  MALE
+  FEMALE
+  OTHER
+  UNSPECIFIED
+}
+
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  SEPARATED
+  WIDOWED
+}
+
+enum LivingSituation {
+  HOMELESS_SHELTER
+  UNHOMED
+  DEPENDENT_INSTITUTION
+  INDEPENDENT_LIVING
+  TREATMENT_CENTER
+  PRISON
+}
+
+enum HealthRating {
+  VERY_GOOD
+  GOOD
+  AVERAGE
+  DECLINING
+}
+
+enum IncomeType {
+  SSDI
+  SSI
+  AFDC
+  EMPLOYMENT
+  FOOD_STAMPS
+  CHILD_SUPPORT
+  UNEMPLOYMENT
+  SPOUSAL_SUPPORT
+  OTHER
+}
+
+enum InsuranceType {
+  VA
+  MEDICAID
+  MEDICARE
+  OTHER
+}
+
+enum RelationshipQuality {
+  GOOD
+  FAIR
+  POOR
+  ABSENT
+  NO_CONTACT
+  DECEASED
+}
+
+enum HomeLifeRating {
+  GOOD
+  FAIR
+  POOR
+  UNSTABLE
+}
+
+enum SupervisionType {
+  PROBATION
+  PAROLE
+  OTHER
+}
+
+enum LegalMatterType {
+  BENEFITS
+  RECORDS_EXPUNGEMENT
+  FAMILY
+  HOUSING
+  OTHER
+}
+
+enum PayFrequency {
+  HOURLY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  ANNUALLY
+}
+
+enum EducationType {
+  HIGH_SCHOOL
+  GED
+  VOCATIONAL_TRADE
+  ASSOCIATE
+  BACHELOR
+  GRADUATE_PROFESSIONAL
+  OTHER
+}
+
+enum AwardType {
+  DIPLOMA
+  GED
+  CERTIFICATE
+  ASSOCIATE
+  BACHELOR
+  MASTER
+  DOCTORATE
+  OTHER
+}
+
+enum TreatmentProgramType {
+  OUTPATIENT
+  INPATIENT_RESIDENTIAL
+  DETOX
+  SUPPORT_GROUP
+}
+
+enum ServiceType {
+  HOUSING
+  MONEY_MANAGEMENT
+  RECREATION
+  LEGAL
+  ENTITLEMENTS
+  HEALTHCARE_COORD
+  FAMILY_SUPPORT
+  VOCATIONAL
+  TREATMENT
+  OTHER
+}
+
+// ---------------- Core: Applicant & Contact ----------------
+model Applicant {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Section 1 — Applicant info
+  firstName         String
+  middleInitial     String?       @db.VarChar(8)
+  lastName          String
+  sex               Sex
+  dob               DateTime
+  ssn               String?       @db.VarChar(32) // don’t unique; duplicates possible
+  maritalStatus     MaritalStatus
+  raceEthnicity     String        @db.Text
+  primaryLanguage   String        @db.Text
+  phoneHome         String?       @db.Text
+  phoneWork         String?       @db.Text
+  email             String?       @db.Text
+  emergencyName     String
+  emergencyPhone    String
+  emergencyRelation String
+  isVeteran         Boolean       @default(false)
+  veteranBranch     String?       @db.Text
+
+  // Section 2 — Living situation
+  livingSituation    LivingSituation
+  currentStreet      String?         @db.Text
+  currentCity        String?         @db.Text
+  currentState       String?         @db.Text
+  currentZip         String?         @db.Text
+  proofOfAddressType String?         @db.Text
+  unhomedSummary     String?         @db.Text
+  facilityName       String?         @db.Text
+  referralSource     String          @db.Text
+
+  // Section 6 (always captured): health rating & last exam
+  healthRating HealthRating
+  lastExamDate DateTime?
+
+  // Section 11 — family background summary
+  relFatherUp    RelationshipQuality?
+  relFatherNow   RelationshipQuality?
+  relMotherUp    RelationshipQuality?
+  relMotherNow   RelationshipQuality?
+  raisedBy       String?              @db.Text // required only if both “Absent” at intake layer
+  brothersCount  Int?                 @default(0)
+  sistersCount   Int?                 @default(0)
+  homeLife       HomeLifeRating?
+  familyComments String?              @db.Text
+
+  // Section 15 (optional prompts)
+  godToYou       String? @db.Text
+  thinkOfGodFreq String? @db.Text
+
+  // Section 15 — faith community & support
+  belongsFaithCommunity Boolean @default(false)
+  faithCommunityName    String? @db.Text
+  faithCommunityLeader  String? @db.Text
+  faithCommunityPhone   String? @db.Text
+  wantsSpiritualSupport Boolean @default(false)
+  preferredSupport      String? @db.Text // e.g., “Chaplain visit…”
+  contactPreference     String? @db.Text
+  otherSupportDetail    String? @db.Text
+  hasObservances        Boolean @default(false)
+  observancesDetail     String? @db.Text
+
+  // Section 16 — goals & needs
+  hasGoalsNeeds    Boolean @default(false)
+  currentNeeds     String? @db.Text
+  immediateGoals   String? @db.Text
+  goals6m          String? @db.Text
+  goals1y          String? @db.Text
+  nlrcSupport      String? @db.Text
+  isWorkingOnNeeds Boolean @default(false)
+  stepsTaken       String? @db.Text
+  hasBarriers      Boolean @default(false)
+  barriers         String? @db.Text
+  wantsCaseMgmt    Boolean @default(false)
+  preferredContact String? @db.Text
+  bestTimes        String? @db.Text
+
+  // Relations (one-to-many)
+  householdMembers  HouseholdMember[]
+  incomes           IncomeEntry[]
+  insurances        InsuranceEnrollment[]
+  healthDetails     HealthDetail?
+  hospitalizations  Hospitalization[]
+  medications       Medication[]
+  convictions       Conviction[]
+  supervisions      Supervision[]
+  pendingCases      PendingCase[]
+  restrainingOrders RestrainingOrder[]
+  sexOffenderRegs   SexOffenderRegistration[]
+  courtMandates     CourtMandate[]
+  financialObligs   FinancialObligation[]
+  releaseConditions ReleaseCondition[]
+  techRestrictions  TechRestriction[]
+  serviceNeeds      ServiceNeed[]
+  education         EducationEntry[]
+  employment        EmploymentEntry[]
+  substanceProfile  SubstanceProfile?
+  substanceEpisodes TreatmentEpisode[]
+  substances        ApplicantSubstance[] // join to Substance dictionary
+}
+
+model HouseholdMember {
+  id           String   @id @default(cuid())
+  applicantId  String
+  name         String
+  ssn          String?  @db.Text
+  dob          DateTime
+  relationship String   @db.Text
+
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+}
+
+// ---------------- Income & Insurance ----------------
+model IncomeEntry {
+  id            String     @id @default(cuid())
+  applicantId   String
+  type          IncomeType
+  amountMonthly Decimal?   @db.Decimal(10, 2)
+  otherDesc     String?    @db.Text
+
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+
+  @@index([applicantId, type])
+}
+
+model InsuranceEnrollment {
+  id          String        @id @default(cuid())
+  applicantId String
+  type        InsuranceType
+
+  // VA
+  vaMemberId String? @db.Text
+  vaFacility String? @db.Text
+  vaPhone    String? @db.Text
+
+  // Medicaid / Medicare (store IDs only)
+  medicaidId String? @db.Text
+  medicareId String? @db.Text
+
+  // Other carrier
+  otherCarrier  String?   @db.Text
+  otherPlan     String?   @db.Text
+  policyId      String?   @db.Text
+  groupNumber   String?   @db.Text
+  rxBin         String?   @db.Text
+  rxPcn         String?   @db.Text
+  carrierPhone  String?   @db.Text
+  subscriber    String?   @db.Text
+  relationship  String?   @db.Text // Self/Spouse/Parent/Child/Other
+  subscriberDob DateTime?
+  employer      String?   @db.Text
+
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+
+  @@index([applicantId, type])
+}
+
+// ---------------- Health ----------------
+model HealthDetail {
+  id            String  @id @default(cuid())
+  applicantId   String  @unique
+  // Illness/injury narrative (exists only if issues are present)
+  illnessInjury String? @db.Text
+  // Allergies (exists only if toggled yes)
+  allergies     String? @db.Text
+  // PCP (exists only if toggled yes)
+  pcpName       String? @db.Text
+  pcpClinic     String? @db.Text
+  pcpPhone      String? @db.Text
+  // Exam results (exists only if included)
+  examResults   String? @db.Text
+
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+}
+
+model Hospitalization {
+  id           String @id @default(cuid())
+  applicantId  String
+  hospitalName String @db.Text
+  dateText     String @db.Text // free-form “06/2023–07/2023” preserved
+  reason       String @db.Text
+
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+}
+
+model Medication {
+  id          String @id @default(cuid())
+  applicantId String
+  name        String @db.Text
+  dosage      String @db.Text
+  prescriber  String @db.Text
+
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+}
+
+// ---------------- Judicial ----------------
+model Conviction {
+  id             String   @id @default(cuid())
+  applicantId    String
+  offense        String   @db.Text
+  jurisdiction   String?  @db.Text
+  caseNumber     String?  @db.Text
+  convictionDate DateTime
+  disposition    String   @db.Text
+  timeServed     String?  @db.Text
+
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+
+  @@index([applicantId, convictionDate])
+}
+
+model Supervision {
+  id            String          @id @default(cuid())
+  applicantId   String
+  agency        String          @db.Text
+  officerName   String          @db.Text
+  officerPhone  String          @db.Text
+  officerEmail  String?         @db.Text
+  type          SupervisionType
+  level         String?         @db.Text
+  startDate     DateTime?
+  endDate       DateTime?
+  reportingFreq String?         @db.Text
+
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+}
+
+model PendingCase {
+  id            String   @id @default(cuid())
+  applicantId   String
+  offense       String   @db.Text
+  jurisdiction  String?  @db.Text
+  caseNumber    String?  @db.Text
+  nextCourtDate DateTime
+  attorney      String?  @db.Text
+  notes         String?  @db.Text
+
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+}
+
+model RestrainingOrder {
+  id             String    @id @default(cuid())
+  applicantId    String
+  orderType      String    @db.Text
+  protectedParty String    @db.Text
+  jurisdiction   String?   @db.Text
+  caseNumber     String?   @db.Text
+  expiration     DateTime?
+
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+}
+
+model SexOffenderRegistration {
+  id          String    @id @default(cuid())
+  applicantId String
+  state       String    @db.Text
+  tierLevel   String    @db.Text // free text (Level 1/2/3 or Tier I/II/III)
+  endDate     DateTime?
+
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+}
+
+model CourtMandate {
+  id          String  @id @default(cuid())
+  applicantId String
+  courtName   String  @db.Text
+  caseNumber  String  @db.Text
+  judge       String? @db.Text
+  terms       String  @db.Text
+  reporting   String? @db.Text
+
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+}
+
+model FinancialObligation {
+  id          String    @id @default(cuid())
+  applicantId String
+  totalDue    Decimal   @db.Decimal(10, 2)
+  payee       String?   @db.Text
+  dueDate     DateTime?
+
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+}
+
+model ReleaseCondition {
+  id          String @id @default(cuid())
+  applicantId String
+  detail      String @db.Text
+
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+}
+
+model TechRestriction {
+  id          String @id @default(cuid())
+  applicantId String
+  detail      String @db.Text
+
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+}
+
+// ---------------- Services (per-type rows; no giant sparse table) ----------------
+model ServiceNeed {
+  id          String      @id @default(cuid())
+  applicantId String
+  type        ServiceType
+
+  // HOUSING
+  housingPrimaryNeed   String? @db.Text
+  housingTimeframe     String? @db.Text
+  housingAccessibility String? @db.Text
+
+  // MONEY_MANAGEMENT
+  moneyGoal       String? @db.Text
+  paySchedulePref String? @db.Text
+
+  // RECREATION
+  recreationInterests String? @db.Text
+
+  // LEGAL
+  legalMatterType  LegalMatterType?
+  legalNextDate    DateTime?
+  legalAttorney    String?          @db.Text
+  legalDescription String?          @db.Text
+
+  // ENTITLEMENTS
+  entPrograms      String?  @db.Text
+  entAppliedBefore Boolean?
+  entStatus        String?  @db.Text
+
+  // HEALTHCARE_COORD
+  healthCoordNeed       String? @db.Text
+  healthPreferredClinic String? @db.Text
+  healthBestTimes       String? @db.Text
+
+  // FAMILY_SUPPORT
+  familyGoal        String? @db.Text
+  familyKeyContacts String? @db.Text
+  familyScheduling  String? @db.Text
+
+  // VOCATIONAL
+  workGoal                String? @db.Text
+  workExperience          String? @db.Text
+  workScheduleConstraints String? @db.Text
+
+  // TREATMENT
+  treatInterest         String? @db.Text // Outpatient/Inpatient/…
+  treatCurrentProvider  String? @db.Text
+  treatPreferredProgram String? @db.Text
+
+  // OTHER
+  otherDescription String? @db.Text
+  otherNotes       String? @db.Text
+
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+
+  @@index([applicantId, type])
+}
+
+// ---------------- Education & Employment ----------------
+model EducationEntry {
+  id             String        @id @default(cuid())
+  applicantId    String
+  type           EducationType
+  institution    String        @db.Text
+  majorProgram   String?       @db.Text
+  yearsCompleted Int?
+  cityState      String?       @db.Text
+
+  startDate         DateTime?
+  endDate           DateTime?
+  currentlyEnrolled Boolean   @default(false)
+
+  earnedAward Boolean    @default(false)
+  awardType   AwardType?
+  awardOther  String?    @db.Text
+  awardDate   DateTime?
+  honors      String?    @db.Text
+
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+}
+
+model EmploymentEntry {
+  id           String       @id @default(cuid())
+  applicantId  String
+  employer     String       @db.Text
+  phone        String       @db.Text
+  address      String?      @db.Text
+  position     String       @db.Text
+  supervisor   String?      @db.Text
+  payFrequency PayFrequency
+  payRate      Decimal      @db.Decimal(10, 2)
+  hoursPerWeek Int?
+
+  startDate DateTime
+  endDate   DateTime?
+  current   Boolean   @default(false)
+
+  canContact    Boolean @default(false)
+  contactPerson String? @db.Text
+  contactPhone  String? @db.Text
+  contactEmail  String? @db.Text
+
+  reasonForLeaving String? @db.Text
+
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+}
+
+// ---------------- Substance Use ----------------
+model SubstanceProfile {
+  id                 String    @id @default(cuid())
+  applicantId        String    @unique
+  ageFirstUse        Int?
+  currentlyAbstinent Boolean   @default(false)
+  sobrietyStartDate  DateTime?
+  lastUseDate        DateTime?
+  narrative          String?
+
+  // 1:1 to the join row that represents the chosen "primary" substance
+  primarySubstanceId String?             @unique
+  primarySubstance   ApplicantSubstance? @relation("PrimarySubstance", fields: [primarySubstanceId], references: [id])
+
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+}
+
+model TreatmentEpisode {
+  id          String               @id @default(cuid())
+  applicantId String
+  programType TreatmentProgramType
+  provider    String               @db.Text
+  startDate   DateTime
+  endDate     DateTime?
+  completed   Boolean?
+  notes       String?              @db.Text
+
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+}
+
+model Substance {
+  // static dictionary rows (e.g., Alcohol, Heroin, Marijuana…)
+  id         String               @id @default(cuid())
+  name       String               @unique
+  // ex: pre-seed your list based on the UI
+  applicants ApplicantSubstance[]
+}
+
+model ApplicantSubstance {
+  id          String @id @default(cuid())
+  applicantId String
+  substanceId String
+
+  applicant Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  substance Substance @relation(fields: [substanceId], references: [id], onDelete: Restrict)
+
+  // back side of 1:1
+  primaryFor SubstanceProfile? @relation("PrimarySubstance")
+
+  @@unique([applicantId, substanceId])
+  @@index([applicantId])
+}
