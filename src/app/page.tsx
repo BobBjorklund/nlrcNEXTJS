@@ -1921,7 +1921,7 @@ function Input({
   required = false,
   onChange,
   defaultValue,
-  value, // if you ever control it
+  value,
 }: {
   label: string;
   id?: string;
@@ -1949,11 +1949,19 @@ function Input({
     return () => ctx.unregister(fieldId);
   }, [ctx, fieldId, required, computeFilled]);
 
-  // If controlled, reflect external changes
+  // reflect external changes for controlled inputs
   React.useEffect(() => {
     if (!ctx) return;
     ctx.update(fieldId, computeFilled());
   }, [value, defaultValue, ctx, fieldId, computeFilled]);
+
+  // only pass one of value/defaultValue to avoid controlled/uncontrolled warnings
+  const valueProps =
+    value !== undefined
+      ? { value }
+      : defaultValue !== undefined
+      ? { defaultValue }
+      : {};
 
   return (
     <label className={`${className} flex w-full min-w-0 flex-col gap-1`}>
@@ -1971,8 +1979,7 @@ function Input({
           ctx?.update(fieldId, computeFilled());
           onChange?.(e);
         }}
-        defaultValue={defaultValue}
-        value={value as any}
+        {...valueProps}
       />
     </label>
   );
@@ -2018,6 +2025,13 @@ function Textarea({
     ctx.update(fieldId, computeFilled());
   }, [value, defaultValue, ctx, fieldId, computeFilled]);
 
+  const valueProps =
+    value !== undefined
+      ? { value }
+      : defaultValue !== undefined
+      ? { defaultValue }
+      : {};
+
   return (
     <label className={`flex w-full min-w-0 flex-col gap-1 ${className}`}>
       <span className="text-sm font-medium">
@@ -2033,39 +2047,46 @@ function Textarea({
           ctx?.update(fieldId, computeFilled());
           onChange?.(e);
         }}
-        defaultValue={defaultValue}
-        value={value}
+        {...valueProps}
       />
     </label>
   );
 }
 
-function Select({
-  label,
-  id,
-  children,
-  className = "",
-  value,
-  onChange,
-  required = false,
-}: {
+type SelectProps = {
   label: string;
   id?: string;
   children: React.ReactNode;
   className?: string;
-  value?: any;
+  value?: string | number; // controlled (optional)
+  defaultValue?: string | number; // uncontrolled (optional)
   onChange?: React.ChangeEventHandler<HTMLSelectElement>;
   required?: boolean;
-}) {
+};
+
+function Select(props: SelectProps) {
+  const {
+    label,
+    id,
+    children,
+    className = "",
+    value,
+    defaultValue,
+    onChange,
+    required = false,
+  } = props;
+
   const ctx = React.useContext(SectionProgressContext);
   const autoId = React.useId();
   const fieldId = id ?? autoId;
   const ref = React.useRef<HTMLSelectElement>(null);
 
   const computeFilled = React.useCallback(() => {
-    const v = ref.current?.value ?? "";
-    return String(v).trim().length > 0;
-  }, []);
+    // prefer the current DOM value; fall back to controlled value if present
+    const raw =
+      ref.current?.value ?? (value !== undefined ? String(value) : "");
+    return raw.trim().length > 0;
+  }, [value]);
 
   React.useEffect(() => {
     if (!ctx) return;
@@ -2076,7 +2097,21 @@ function Select({
   React.useEffect(() => {
     if (!ctx) return;
     ctx.update(fieldId, computeFilled());
-  }, [value, ctx, fieldId, computeFilled]);
+  }, [value, defaultValue, ctx, fieldId, computeFilled]);
+
+  // Avoid “value as any” and controlled/uncontrolled warnings:
+  // build the prop bag imperatively so only ONE of value/defaultValue is passed.
+  const valueProps: Partial<
+    Pick<
+      React.SelectHTMLAttributes<HTMLSelectElement>,
+      "value" | "defaultValue"
+    >
+  > = {};
+  if (value !== undefined) {
+    valueProps.value = value;
+  } else if (defaultValue !== undefined) {
+    valueProps.defaultValue = defaultValue;
+  }
 
   return (
     <label className={`flex w-full min-w-0 flex-col gap-1 ${className}`}>
@@ -2088,11 +2123,11 @@ function Select({
         id={fieldId}
         required={required}
         className="w-full min-w-0 rounded-md border px-3 py-2"
-        value={value}
         onChange={(e) => {
           ctx?.update(fieldId, computeFilled());
           onChange?.(e);
         }}
+        {...valueProps}
       >
         {children}
       </select>
